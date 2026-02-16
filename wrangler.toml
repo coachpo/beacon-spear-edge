@@ -1,0 +1,9 @@
+name = "beacon-spear-edge"
+main = "src/cloudflare-worker.mjs"
+compatibility_date = "2026-02-16"
+
+[vars]
+EDGE_NAME = "cloudflare"
+EDGE_EXPECT_ENDPOINT_ID = ""
+UPSTREAM_INGEST_URL = ""
+EDGE_MAX_HOPS = "5"

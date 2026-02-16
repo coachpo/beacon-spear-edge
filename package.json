@@ -1,0 +1,14 @@
+{
+  "name": "beacon-spear-edge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "lint": "node --check src/cloudflare-worker.mjs src/edgeone-worker.mjs src/core.mjs src/env.mjs",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "wrangler": "^4.32.0"
+  }
+}
