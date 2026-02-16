@@ -7,7 +7,6 @@ These functions accept requests in the same shape as the backend Ingest API and 
 Supported paths:
 
 - `POST /api/ingest/{endpoint_id}`
-- `POST /api/i/{endpoint_id}` (alias)
 - `GET /healthz`
 
 Configuration model:
