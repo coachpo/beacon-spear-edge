@@ -44,7 +44,8 @@ function buildUpstreamUrl(upstreamIngestUrl, requestUrl) {
 function parseIngestEndpointIdFromPath(pathname) {
   const parts = String(pathname || "").split("/").filter(Boolean);
   if (parts.length !== 3) return "";
-  if (parts[0] !== "api" || parts[1] !== "ingest") return "";
+  if (parts[0] !== "api") return "";
+  if (parts[1] !== "ingest" && parts[1] !== "i") return "";
   return parts[2];
 }
 
