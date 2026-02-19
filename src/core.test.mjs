@@ -60,3 +60,15 @@ test("enforces hop limit", async () => {
   const resp = await handleEdgeRequest(req, env);
   assert.equal(resp.status, 508);
 });
+
+test("enforces hop limit with EdgeOne alias", async () => {
+  const env = makeEnv({ "EDGE-MAX-HOPS": "2" });
+  globalThis.fetch = async () => new Response("ok", { status: 201 });
+  const req = new Request("https://edge.example/api/ingest/abcd", {
+    method: "POST",
+    headers: { "X-Beacon-Ingest-Key": "edge-in", "X-Beacon-Edge-Hop": "2" },
+    body: "hello",
+  });
+  const resp = await handleEdgeRequest(req, env);
+  assert.equal(resp.status, 508);
+});

@@ -34,3 +34,13 @@ export function getEnvInt(env, key, fallback) {
   if (!Number.isFinite(n)) return fallback;
   return n;
 }
+
+export function getEnvIntAny(env, keys, fallback) {
+  for (const k of keys) {
+    const v = getEnvString(env, k).trim();
+    if (!v) continue;
+    const n = parseInt(v, 10);
+    if (Number.isFinite(n)) return n;
+  }
+  return fallback;
+}

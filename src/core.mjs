@@ -1,4 +1,4 @@
-import { getEnvInt, getEnvStringAny, parseCommaList } from "./env.mjs";
+import { getEnvIntAny, getEnvStringAny, parseCommaList } from "./env.mjs";
 
 function constantTimeEqual(a, b) {
   const aa = String(a || "");
@@ -82,7 +82,7 @@ export async function handleEdgeRequest(request, env) {
     return jsonResponse({ code: "not_authenticated", message: "unauthorized" }, 401);
   }
 
-  const maxHops = getEnvInt(env, "EDGE_MAX_HOPS", 5);
+  const maxHops = getEnvIntAny(env, ["EDGE_MAX_HOPS", "EDGE-MAX-HOPS"], 5);
   const prevHop = request.headers.get("X-Beacon-Edge-Hop");
   const hop = prevHop ? parseInt(prevHop, 10) : 0;
   const hopCount = Number.isFinite(hop) ? hop + 1 : 1;
