@@ -7,3 +7,10 @@ EDGE_NAME = "cloudflare"
 EDGE_EXPECT_ENDPOINT_ID = ""
 UPSTREAM_INGEST_URL = ""
 EDGE_MAX_HOPS = "5"
+
+# Uncomment to enable Lite mode (local rule evaluation + dispatch).
+# When EDGE_CONFIG KV binding is present, the worker runs in Lite mode
+# instead of proxy mode.
+# [[kv_namespaces]]
+# binding = "EDGE_CONFIG"
+# id = "<your-kv-namespace-id>"
