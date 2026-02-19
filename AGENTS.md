@@ -2,14 +2,11 @@
 
 ## Project Overview
 
-Edge functions that proxy Beacon Spear ingestion.
+Beacon Spear Lite (Edge) — a Cloudflare Worker that evaluates forwarding rules locally and dispatches notifications to Bark/ntfy via HTTP. Configured entirely via Cloudflare KV (`EDGE_CONFIG` binding).
 
-Targets:
+Target: Cloudflare Workers only.
 
-- Cloudflare Workers
-- Tencent EdgeOne
-
-## Local Dev (Cloudflare)
+## Local Dev
 
 From `edge/`:
 
@@ -17,7 +14,19 @@ From `edge/`:
   - `npm install`
 - Run locally:
   - `npm run dev`
+- Run tests:
+  - `npm test`
+- Lint:
+  - `npm run lint`
 
 ## Configuration
 
-See `edge/README.md` for required environment variables and secrets.
+All runtime config is stored in Cloudflare KV (bound as `EDGE_CONFIG`). See `edge/README.md` for the config shape and deployment instructions.
+
+## Architecture
+
+- `src/cloudflare-worker.mjs` — entry point, delegates to `handleLiteRequest`
+- `src/lite.mjs` — request handler (auth, validation, rule evaluation, dispatch)
+- `src/rules.mjs` — rule filter matching
+- `src/template.mjs` — notification template rendering
+- `src/providers.mjs` — Bark + ntfy HTTP dispatch

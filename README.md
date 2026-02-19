@@ -1,91 +1,96 @@
-# edge
+# edge — Beacon Spear Lite (Edge)
 
-Edge functions that proxy Beacon Spear ingestion.
+Cloudflare Worker that runs Beacon Spear in lite mode: local rule evaluation, template rendering, and HTTP dispatch to Bark/ntfy — all configured via Cloudflare KV.
 
-These functions accept requests in the same shape as the backend Ingest API and forward them to a configured next hop.
+Target: Cloudflare Workers (free tier compatible).
+
+## How It Works
+
+1. Receives `POST /api/ingest/{endpoint_id}` with a JSON body.
+2. Authenticates the request using a `token_hash` from KV config.
+3. Evaluates forwarding rules locally (field matching, regex, keyword filters).
+4. Renders notification templates and dispatches to Bark or ntfy via HTTP.
+
+No backend round-trip required. Best-effort delivery, no durable retries or message history.
 
 Supported paths:
 
-- `POST /api/ingest/{endpoint_id}`
-- `GET /healthz`
+- `POST /api/ingest/{endpoint_id}` — ingest + rule evaluation + dispatch
+- `GET /healthz` — health check (returns `{"ok": true, "mode": "lite"}`)
 
-Configuration model:
+## Configuration
 
-- Incoming requests must include `X-Beacon-Ingest-Key` matching the edge function's configured key(s).
-- Each edge function is configured with a next hop ingestion URL and the next hop `X-Beacon-Ingest-Key`.
+All configuration is stored in a Cloudflare KV namespace bound as `EDGE_CONFIG`.
 
-The forwarder preserves the request path shape and forwards the raw request body as-is.
-Incoming query parameters are appended to the configured upstream ingest URL.
+The backend exports config via `GET /api/edge-config` (authenticated). Push the JSON blob to KV under the key `"config"`.
 
-The forwarder sets:
+Config shape (stored in KV):
 
-- `X-Beacon-Edge-Hop` (loop prevention)
-- `X-Beacon-Edge-Name` (optional)
-- `X-Beacon-Edge-Client-IP` (best effort)
-- `X-Forwarded-For` (best effort)
-
-This supports multi-hop routing such as:
-
-- Request -> EdgeOne -> Cloudflare -> Ingestion
-- Request -> EdgeOne -> Ingestion
-- Request -> Cloudflare -> Ingestion
-- Request -> Cloudflare -> EdgeOne -> Ingestion
-
-## Cloudflare Workers
-
-This repo includes `wrangler.toml` for Workers.
-
-Configuration bindings:
-
-- Incoming auth:
-  - `EDGE_INGEST_KEYS` (secret, comma-separated)
-  - optionally `EDGE_EXPECT_ENDPOINT_ID` (var)
-- Next hop:
-  - `UPSTREAM_INGEST_URL` (var, full URL to `/api/ingest/{endpoint_id}`)
-  - `UPSTREAM_INGEST_KEY` (secret)
-- Loop safety:
-  - `EDGE_MAX_HOPS` (var, default 5)
-
-Optional:
-
-- `EDGE_NAME` (var): sets `X-Beacon-Edge-Name`
-
-Example:
-
-```bash
-npx wrangler secret put EDGE_INGEST_KEYS
-npx wrangler secret put UPSTREAM_INGEST_KEY
+```json
+{
+  "endpoints": {
+    "<endpoint_id>": {
+      "token_hash": "<sha256 hex of ingest token>",
+      "rules": [
+        {
+          "channel_type": "bark",
+          "channel_config": { "base_url": "https://bark.example.com", "device_key": "..." },
+          "filters": {
+            "endpoint_ids": ["<endpoint_id>"],
+            "body.contains": "keyword",
+            "body.regex": "pattern"
+          },
+          "payload_template": {
+            "title": "{{title}}",
+            "body": "{{body}}",
+            "group": "{{group}}"
+          }
+        }
+      ]
+    }
+  }
+}
 ```
 
-Local dev (no Cloudflare account needed):
+## Deployment
+
+1. Create a KV namespace:
+
+```bash
+npx wrangler kv namespace create EDGE_CONFIG
+```
+
+2. Update `wrangler.toml` with the namespace ID.
+
+3. Push config to KV:
+
+```bash
+npx wrangler kv key put --namespace-id=<ns_id> config '<json blob>'
+```
+
+4. Deploy:
+
+```bash
+npm run deploy
+```
+
+## Local Dev
 
 ```bash
 npm install
-npx wrangler dev --local --port 8787 \
-  --var EDGE_NAME:cloudflare-local \
-  --var EDGE_INGEST_KEYS:edge-local-key \
-  --var EDGE_EXPECT_ENDPOINT_ID:<endpoint_id_hex> \
-  --var UPSTREAM_INGEST_URL:http://127.0.0.1:8000/api/ingest/<endpoint_id_hex> \
-  --var UPSTREAM_INGEST_KEY:<backend_ingest_key>
-
-curl -X POST "http://127.0.0.1:8787/api/ingest/<endpoint_id_hex>?via=cf" \
-  -H "X-Beacon-Ingest-Key: edge-local-key" \
-  --data-binary "hello from workers"
+npm run dev
 ```
 
-## Tencent EdgeOne
+For local dev with KV, use `wrangler dev --local` and populate a local KV namespace.
 
-Tencent EdgeOne uses the same handler via `src/edgeone-worker.mjs`.
+## Tests
 
-EdgeOne environment variable names cannot contain `_`. Use the `-` variants instead:
+```bash
+npm test
+```
 
-- `EDGE-INGEST-KEYS`
-- `EDGE-EXPECT-ENDPOINT-ID`
-- `UPSTREAM-INGEST-URL`
-- `UPSTREAM-INGEST-KEY`
-- `EDGE-MAX-HOPS`
+## Limitations
 
-Multi-hop note:
-
-- When chaining `EdgeOne -> Cloudflare -> Ingestion`, configure EdgeOne's `UPSTREAM-INGEST-URL` to point at the Cloudflare worker's `/api/ingest/{endpoint_id}`.
-- EdgeOne's `UPSTREAM-INGEST-KEY` must match one of the Cloudflare worker's `EDGE_INGEST_KEYS`.
+- HTTP providers only (Bark, ntfy). MQTT is not supported (no TCP sockets in Workers).
+- Best-effort delivery. No durable retries or message persistence.
+- User-supplied regex in rule filters could cause ReDoS; keep patterns simple.
